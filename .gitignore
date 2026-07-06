@@ -1,0 +1,16 @@
+.vscode/
+**/*.ipynb
+.ipynb_checkpoints/
+weights/
+*.pt
+*.ckpt
+*.pth
+*.weights
+
+__pycache__/
+*.pyc
+ultralytics/runs/
+ultralytics/weights/
+ultralytics/ops_dcnv3/build/
+ultralytics/ops_dcnv3/dist/
+ultralytics/ops_dcnv3/*.egg-info/

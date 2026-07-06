@@ -1,0 +1,56 @@
+# YOLOv12-DCN-CARAFE-BiFPN: 
+# 3. Added a BiFPN-style cross-scale connection for enhanced P3 features,
+#    improving small-to-medium object detection (e.g., platelets, smaller RBCs).
+
+# Parameters
+nc: 3  # number of classes: rbc, wbc, platelet
+scales:
+  n: [0.50, 0.25, 1024]
+
+# YOLOv12n backbone
+backbone:
+  - [-1, 1, Conv, [64, 3, 2]]         # 0
+  - [-1, 1, Conv, [128, 3, 2]]        # 1
+  - [-1, 2, C3k2, [256, False, 0.25]] # 2 <-- Pristine P2 features
+  - [-1, 1, Conv, [256, 3, 2]]        # 3
+  - [-1, 2, C3k2, [512, False, 0.25]] # 4 <-- Pristine P3 features (Target for our connection)
+  - [-1, 1, Conv, [512, 3, 2]]        # 5
+  - [-1, 4, A2C2f, [512, True]]       # 6
+  - [-1, 1, Conv, [1024, 3, 2]]       # 7
+  - [-1, 4, A2C2f, [1024, True]]      # 8
+
+# Head with CARAFE, TOA, DCN, and a BiFPN-style Cross-Scale Connection
+head:
+  # --- Top-down path ---
+  - [-1, 1, CARAFE, [1024]]                     # 9
+  - [[-1, 6], 1, Concat, [1]]                   # 10
+  - [-1, 2, A2C2f, [512, False, -1]]            # 11
+
+  - [-1, 1, CARAFE, [512]]                      # 12
+  - [[-1, 4], 1, Concat, [1]]                   # 13
+  - [-1, 2, A2C2f, [256, False, -1]]            # 14 (P3 from top-down)
+
+  - [-1, 1, CARAFE, [256]]                      # 15
+  - [[-1, 2], 1, Concat, [1]]                   # 16
+  - [-1, 1, TinyObjectAttentionMOE, [512, 256]]    # 17
+  - [-1, 2, A2C2f, [256, False, -1]]            # 18 (P2/4 output)
+
+  # --- Bottom-up path with BiFPN-style connection ---
+  - [-1, 1, Conv, [128, 3, 2]]                  # 19
+  
+  # <<< MODIFICATION: Concat with P3 from top-down (14) AND P3 from backbone (4)
+  - [[-1, 14, 4], 1, Concat, [1]]               # 20
+  # Original line: [[-1, 14], 1, Concat, [1]]
+  
+  - [-1, 2, A2C2f, [256, False, -1]]            # 21 (P3/8 output)
+
+  - [-1, 1, Conv, [256, 3, 2]]                  # 22
+  - [[-1, 11], 1, Concat, [1]]                  # 23
+  - [-1, 2, A2C2f, [512, False, -1]]            # 24 (P4/16 output)
+
+  - [-1, 1, Conv, [512, 3, 2]]                  # 25
+  - [[-1, 8], 1, Concat, [1]]                   # 26
+  - [-1, 2, C3k2, [1024, True]]                 # 27 (P5/32 output)
+
+  # Final Detect layer with 4 heads
+  - [[18, 21, 24, 27], 1, Detect, [nc]]         # 28

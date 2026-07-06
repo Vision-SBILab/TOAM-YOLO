@@ -1,0 +1,47 @@
+# YOLOv12n Baseline (Standard)
+# Standard YOLOv12n without any TOAM enhancements
+# 
+# Purpose: Ablation study - measure effect of P2 head + architectural enhancements
+# Detection scales: P3 (8x), P4 (16x), P5 (32x) - NO P2
+
+# Parameters
+nc: 3  # number of classes: rbc, wbc, platelet
+scales:
+  n: [0.50, 0.25, 1024]  # depth, width, max_channels
+
+# Standard YOLOv12n backbone
+backbone:
+  - [-1, 1, Conv, [64, 3, 2]]         # 0-P1/2
+  - [-1, 1, Conv, [128, 3, 2]]        # 1-P2/4  
+  - [-1, 2, C3k2, [256, False, 0.25]] # 2-P2 features (not used for detection)
+  - [-1, 1, Conv, [256, 3, 2]]        # 3-P3/8
+  - [-1, 2, C3k2, [512, False, 0.25]] # 4-P3 features
+  - [-1, 1, Conv, [512, 3, 2]]        # 5-P4/16
+  - [-1, 4, C2f, [512, False, -1]]    # 6-P4 features (standard C2f, not A2C2f)
+  - [-1, 1, Conv, [1024, 3, 2]]       # 7-P5/32
+  - [-1, 4, C2f, [1024, False, -1]]   # 8-P5 features (standard C2f, not A2C2f)
+
+# Standard YOLOv12n Head: Three-scale detection P3, P4, P5 only
+head:
+  # --- Top-down path (standard, no CARAFE) ---
+  - [-1, 1, Conv, [512, 3, 1]]                # 9-P5 transition
+  - [-1, 1, nn.Upsample, [None, 2, 'nearest']] # 10-Upsample P5->P4
+  - [[-1, 6], 1, Concat, [1]]                # 11-Fuse with P4
+  - [-1, 2, C2f, [512, False, -1]]           # 12-Enhanced P4
+
+  - [-1, 1, Conv, [256, 3, 1]]               # 13-P4 transition
+  - [-1, 1, nn.Upsample, [None, 2, 'nearest']] # 14-Upsample P4->P3
+  - [[-1, 4], 1, Concat, [1]]                # 15-Fuse with P3
+  - [-1, 2, C2f, [256, False, -1]]           # 16-Enhanced P3
+
+  # --- Bottom-up path (standard) ---
+  - [-1, 1, Conv, [256, 3, 2]]               # 17-P3->P4
+  - [[-1, 12], 1, Concat, [1]]               # 18-Fuse with P4
+  - [-1, 2, C2f, [512, False, -1]]           # 19-P4 detection head
+
+  - [-1, 1, Conv, [512, 3, 2]]               # 20-P4->P5
+  - [[-1, 8], 1, Concat, [1]]                # 21-Fuse with P5
+  - [-1, 2, C2f, [1024, False, -1]]          # 22-P5 detection head
+
+  # Three-scale detection: P3 + P4 + P5
+  - [[16, 19, 22], 1, Detect, [nc]]          # 23-Detection head

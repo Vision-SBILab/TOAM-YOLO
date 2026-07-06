@@ -1,0 +1,68 @@
+# TOAM-YOLO: A Lightweight Tiny Object-Aware Multi-Expert YOLO Framework for Diverse Domains
+# Complete implementation with TOA-MoE (Tiny Object Attention with Mixture-of-Experts) module
+#
+# Key Components:
+# 1. TOA-MoE Module: Two-stage attention with Multi-Domain + Multi-Granularity experts
+# 2. CARAFE Upsampling: Content-Aware ReAssembly of FEatures for detail preservation  
+# 3. DCNv3 Integration: Deformable Convolutions v3 for spatial adaptability
+# 4. BiFPN-style Connection: Enhanced cross-scale feature fusion for small objects
+# 5. A2C2f Blocks: Area-attention enhanced feature extraction
+#
+# Architecture: YOLOv12n backbone + TOAM enhancements
+# Target: Tiny object detection (< 20x20 pixels) across diverse domains
+# Reference: TOAM-YOLO paper - Complete framework implementation
+
+# Parameters
+nc: 3  # number of classes: rbc, wbc, platelet
+scales:
+  n: [0.50, 0.25, 1024]  # depth, width, max_channels
+
+# YOLOv12n backbone with preserved spatial resolution
+backbone:
+  - [-1, 1, Conv, [64, 3, 2]]         # 0-P1/2
+  - [-1, 1, Conv, [128, 3, 2]]        # 1-P2/4  
+  - [-1, 2, C3k2, [256, False, 0.25]] # 2-P2 features (preserved for tiny objects)
+  - [-1, 1, Conv, [256, 3, 2]]        # 3-P3/8
+  - [-1, 2, C3k2, [512, False, 0.25]] # 4-P3 features (target for BiFPN connection)
+  - [-1, 1, Conv, [512, 3, 2]]        # 5-P4/16
+  - [-1, 4, A2C2f, [512, True]]       # 6-P4 with area-attention
+  - [-1, 1, Conv, [1024, 3, 2]]       # 7-P5/32
+  - [-1, 4, A2C2f, [1024, True]]      # 8-P5 with area-attention
+
+# TOAM-YOLO Head: Complete framework with all enhancements
+head:
+  # --- Top-down path with CARAFE upsampling ---
+  - [-1, 1, nn.Upsample, [None, 2, 'nearest']]  # 1. Upsample (ONNX-safe)
+  - [-1, 1, Conv, [1024, 1, 1]]            # 2. Change channels to 1024
+  - [[-1, 6], 1, Concat, [1]]                   # 10-Fuse P5+P4
+  - [-1, 2, A2C2f, [512, False, -1]]            # 11-Enhanced P4 features
+
+  - [-1, 1, nn.Upsample, [None, 2, 'nearest']]  # 12. Upsample (ONNX-safe)
+  - [-1, 1, Conv, [512, 1, 1]]             # 3. Change channels to 512
+  - [[-1, 4], 1, Concat, [1]]                   # 13-Fuse P4+P3
+  - [-1, 2, A2C2f, [256, False, -1]]            # 14-Enhanced P3 features
+
+  - [-1, 1, nn.Upsample, [None, 2, 'nearest']]  # 15. Upsample (ONNX-safe)
+  - [-1, 1, Conv, [256, 1, 1]]             # 4. Change channels to 256
+  - [[-1, 2], 1, Concat, [1]]                   # 16-Fuse P3+P2  
+  - [-1, 1, TinyObjectAttentionMOE, [512, 256]] # 17-TOA-MoE: Core innovation
+  - [-1, 2, A2C2f, [256, False, -1]]            # 18-P2 detection head (tiny objects)
+
+  # --- Bottom-up path with BiFPN-style enhancement ---
+  - [-1, 1, Conv, [128, 3, 2]]                  # 19-P2->P3 transition
+  
+  # BiFPN-style cross-scale connection: P3_bottom + P3_top + P3_backbone
+  - [[-1, 14, 4], 1, Concat, [1]]               # 20-Triple P3 fusion for enhanced features
+  
+  - [-1, 2, A2C2f, [256, False, -1]]            # 21-P3 detection head (small objects)
+
+  - [-1, 1, Conv, [256, 3, 2]]                  # 22-P3->P4 transition
+  - [[-1, 11], 1, Concat, [1]]                  # 23-Fuse with P4 features
+  - [-1, 2, C2f_DCNV3, [512, True]]             # 24-P4 with DCNv3 (medium objects)
+
+  - [-1, 1, Conv, [512, 3, 2]]                  # 25-P4->P5 transition  
+  - [[-1, 8], 1, Concat, [1]]                   # 26-Fuse with P5 features
+  - [-1, 2, C2f_DCNV3, [1024, True]]            # 27-P5 with DCNv3 (large objects)
+
+  # Four-scale detection: P2(tiny) + P3(small) + P4(medium) + P5(large)
+  - [[18, 21, 24, 27], 1, Detect, [nc]]         # 28-Multi-scale detection head
