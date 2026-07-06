@@ -1,11 +1,16 @@
 # TOAM-YOLO
 
-Official implementation of "TOAM-YOLO: A Tiny Object-Aware Multi-Expert YOLO Framework for Diverse Domains" (TMLR 2026).
+Official PyTorch implementation of **"TOAM-YOLO: A Tiny Object-Aware Multi-Expert YOLO Framework for Diverse Domains"**
 
-Built upon [Ultralytics YOLO](https://github.com/ultralytics/ultralytics) (AGPL-3.0), this repository includes the TOAM-YOLO model definition, training script, and dataset configurations used for experiments in the paper.
+This repository is built upon the [Ultralytics YOLO](https://github.com/ultralytics/ultralytics) framework and contains the modifications proposed in our paper, including the TOA-MoE module, the high-resolution P2 detection pathway, the BiFPN-style feature fusion network, DCNv3 integration, and CARAFE upsampling. The repository also includes the model definitions, training scripts, and dataset configurations used in our experiments.
+
+---
 
 ## License
-Released under AGPL-3.0, built on [Ultralytics YOLO](https://github.com/ultralytics/ultralytics). See `LICENSE`.
+
+This repository is released under the **AGPL-3.0** license, following the licensing terms of the underlying [Ultralytics YOLO](https://github.com/ultralytics/ultralytics) framework. See the `LICENSE` file for details.
+
+---
 
 ## Installation
 
@@ -16,14 +21,14 @@ conda create -n toam-yolo python=3.12
 conda activate toam-yolo
 ```
 
-Install dependencies from the repository requirements file:
+Install PyTorch (choose the appropriate CUDA version from the official PyTorch website if necessary), followed by the project dependencies:
 
 ```bash
 pip install torch torchvision torchaudio
 pip install -r requirements.txt
 ```
 
-Build the local DCNv3 extension:
+Build the DCNv3 extension:
 
 ```bash
 cd ultralytics/ops_dcnv3
@@ -31,76 +36,106 @@ bash make.sh
 cd ../..
 ```
 
-Install FlashAttention for TOA-MoE area attention:
+Install FlashAttention (required by the Area Attention blocks inherited from YOLOv12):
 
 ```bash
 pip install flash-attn --no-build-isolation
 ```
 
-If you need a different PyTorch CUDA build, install the matching PyTorch command from the official PyTorch setup page before installing `requirements.txt`.
-
-## Usage
-
-Prepare a YOLO-format dataset with the following structure:
-
-```text
-datasets/your_dataset/
-├── data.yaml
-├── images/
-│   ├── train/
-│   └── val/
-└── labels/
-    ├── train/
-    └── val/
-```
+---
 
 ## Dataset Setup
 
-Download the datasets and place them following the structure above:
+Prepare a standard YOLO-format dataset:
 
-- SeaPerson: https://cove.thecvf.com/datasets/695
-- TinyPerson: http://vision.ucas.ac.cn/sources
-- VisDrone: https://github.com/VisDrone/VisDrone-Dataset
-- BCCD: https://github.com/Shenggan/BCCD_Dataset
-- CBC: https://github.com/MahmudulAlam/Complete-Blood-Cell-Count-Dataset
+```text
+datasets/
+└── your_dataset/
+    ├── data.yaml
+    ├── images/
+    │   ├── train/
+    │   └── val/
+    └── labels/
+        ├── train/
+        └── val/
+```
 
-Train TOAM-YOLO from the repository root:
+The experiments in the paper use the following publicly available datasets:
+
+- [SeaPerson](https://cove.thecvf.com/datasets/695)
+- [TinyPerson](http://vision.ucas.ac.cn/sources)
+- [VisDrone](https://github.com/VisDrone/VisDrone-Dataset)
+- [BCCD](https://github.com/Shenggan/BCCD_Dataset)
+- [CBC](https://github.com/MahmudulAlam/Complete-Blood-Cell-Count-Dataset)
+
+Download the datasets and update the corresponding dataset YAML files before training.
+
+---
+
+## Training
+
+Training is performed using `main.py`, which wraps the Ultralytics training pipeline with the configurations used in our paper.
+
+Example:
 
 ```bash
 python main.py \
-  --model_yaml configs/toam-yolo.yaml \
-  --data_yaml datasets/your_dataset/data.yaml \
-  --run_name toam_yolo_experiment \
-  --epochs 500 \
-  --batch_size 16 \
-  --project runs/train \
-  --results_csv results.csv
+    --model_yaml configs/toam-yolo.yaml \
+    --data_yaml datasets/your_dataset/data.yaml \
+    --run_name toam_yolo_experiment \
+    --epochs 500 \
+    --batch_size 16 \
+    --project runs/train \
+    --results_csv results.csv
 ```
 
-Evaluate or run inference with a trained checkpoint:
+---
 
-```bash
-python - <<'PY'
+## Inference
+
+Run inference using a trained checkpoint:
+
+```python
 from ultralytics import YOLO
 
 model = YOLO("runs/train/toam_yolo_experiment/weights/best.pt")
-model.predict(source="path/to/images_or_video", imgsz=640, save=True)
-PY
+
+model.predict(
+    source="path/to/images_or_video",
+    imgsz=640,
+    save=True
+)
 ```
 
-Run multiple model/dataset combinations using `main.bash`:
+---
 
-1. Edit `MODELS` and `DATASETS` in `main.bash`.
+## Reproducing Paper Experiments
+
+The repository includes the configuration files used in the paper.
+
+To run multiple model and dataset combinations automatically:
+
+1. Edit the `MODELS` and `DATASETS` variables in `main.bash`.
 2. Run:
 
 ```bash
 bash main.bash
 ```
 
+---
+
 ## Citation
 
-If you find this work useful in your research, please cite our paper:
+## Citation
+
+If you find this work useful in your research, please consider citing our paper.
 
 ```bibtex
-
+Coming soon.
 ```
+
+---
+
+## Acknowledgements
+
+This work builds upon the excellent [Ultralytics YOLO](https://github.com/ultralytics/ultralytics) framework. We thank the Ultralytics team for making their implementation publicly available.
