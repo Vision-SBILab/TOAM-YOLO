@@ -131,7 +131,16 @@ bash main.bash
 If you find this work useful in your research, please consider citing our paper.
 
 ```bibtex
-Coming soon.
+@article{
+sharma2026toamyolo,
+title={{TOAM}-{YOLO}: A Tiny Object-Aware Multi-Expert {YOLO} Framework for Diverse Domains},
+author={Vaibhav Sharma and Arnesh Batra and Arush Gumber and Ritu Gupta and Anubha Gupta},
+journal={Transactions on Machine Learning Research},
+issn={2835-8856},
+year={2026},
+url={https://openreview.net/forum?id=2lIE1tgmRN},
+note={}
+}
 ```
 
 ---
